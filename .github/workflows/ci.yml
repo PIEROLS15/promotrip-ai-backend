@@ -49,6 +49,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Prisma version check
+        run: |
+          npx prisma -v
+          npm list @prisma/client
+
       - name: Build
         run: npm run build
 
