@@ -22,14 +22,11 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Clear npm cache
-        run: npm cache clean --force
-
       - name: Install dependencies
         run: npm ci
 
-      - name: Show file for debugging
-        run: cat src/prisma/prisma.service.ts
+      - name: Generate Prisma Client
+        run: npx prisma generate
 
       - name: Lint
         run: npm run lint
