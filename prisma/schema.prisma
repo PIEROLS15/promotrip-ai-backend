@@ -1,15 +1,246 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id        Int        @id @default(autoincrement())
+  name      String
+  users     User[]
+  suppliers Supplier[]
+}
+
+model User {
+  id                     Int      @id @default(autoincrement())
+  email                  String   @unique
+  fullName               String
+  educationalInstitution String?
+  phone                  String?
+  password               String
+  resetPasswordToken     String?
+  roleId                 Int
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  reservations Reservation[]
+
+  role Role @relation(fields: [roleId], references: [id])
+}
+
+model Supplier {
+  id                 Int      @id @default(autoincrement())
+  email              String   @unique
+  ruc                Int      @unique
+  representativeName String
+  companyName        String
+  phone              String
+  password           String
+  resetPasswordToken String?
+  roleId             Int
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tourPackages TourPackage[]
+  promotions   Promotion[]
+
+  role Role @relation(fields: [roleId], references: [id])
+}
+
+model TourPackage {
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  destinationId      Int
+  pricePersona       Decimal             @db.Decimal(10, 2)
+  categoryPackageId  Int
+  educationLevelId   Int
+  description        String
+  activities         String[]
+  includes           String[]
+  images             TourImage[]
+  supplierId         Int
+  promotions         Promotion[]
+  active             Boolean             @default(true)
+  offers             OfferTourPackage[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  reservationDetails ReservationDetail[]
+
+  categoryPackage CategoryPackage @relation(fields: [categoryPackageId], references: [id])
+  educationLevel  EducationLevel  @relation(fields: [educationLevelId], references: [id])
+  supplier        Supplier        @relation(fields: [supplierId], references: [id])
+  destination     Destination     @relation(fields: [destinationId], references: [id])
+}
+
+model CategoryPackage {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tourPackages TourPackage[]
+}
+
+model EducationLevel {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tourPackages TourPackage[]
+}
+
+model TourImage {
+  id            Int      @id @default(autoincrement())
+  url           String
+  tourPackageId Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tourPackage TourPackage @relation(fields: [tourPackageId], references: [id])
+}
+
+model Contact {
+  id      Int    @id @default(autoincrement())
+  name    String
+  email   String
+  phone   String
+  subject String
+  message String
+}
+
+model Promotion {
+  id            Int     @id @default(autoincrement())
+  tourPackageId Int
+  price         Decimal @db.Decimal(10, 2)
+  name          String
+  description   String
+  supplierId    Int
+  active        Boolean @default(true)
+
+  reservationDetailPromotions ReservationDetailPromotion[]
+
+  tourPackage TourPackage @relation(fields: [tourPackageId], references: [id])
+  supplier    Supplier    @relation(fields: [supplierId], references: [id])
+}
+
+model Offer {
+  id              Int      @id @default(autoincrement())
+  name            String
+  description     String?
+  discountPercent Float
+  startDate       DateTime
+  endDate         DateTime
+  isGlobal        Boolean  @default(false)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tourPackages OfferTourPackage[]
+}
+
+model OfferTourPackage {
+  id            Int @id @default(autoincrement())
+  offerId       Int
+  tourPackageId Int
+
+  offer       Offer       @relation(fields: [offerId], references: [id])
+  tourPackage TourPackage @relation(fields: [tourPackageId], references: [id])
+
+  @@unique([offerId, tourPackageId])
+}
+
+model ReservationStatus {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  reservations Reservation[]
+}
+
+model PaymentMethod {
+  id     Int     @id @default(autoincrement())
+  name   String  @unique
+  active Boolean @default(true)
+
+  payments Payment[]
+}
+
+model PaymentStatus {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  payments Payment[]
+}
+
+model Reservation {
+  id          Int     @id @default(autoincrement())
+  userId      Int
+  statusId    Int
+  peopleCount Int
+  totalAmount Decimal @db.Decimal(10, 2)
+  code        String  @unique
+
+  user   User              @relation(fields: [userId], references: [id])
+  status ReservationStatus @relation(fields: [statusId], references: [id])
+
+  details ReservationDetail[]
+  payment Payment?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ReservationDetail {
+  id            Int @id @default(autoincrement())
+  reservationId Int
+  tourPackageId Int
+
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+  tourPackage TourPackage @relation(fields: [tourPackageId], references: [id])
+
+  promotions ReservationDetailPromotion[]
+
+  createdAt DateTime @default(now())
+}
+
+model ReservationDetailPromotion {
+  id                  Int     @id @default(autoincrement())
+  reservationDetailId Int
+  promotionId         Int
+  price               Decimal @db.Decimal(10, 2)
+
+  reservationDetail ReservationDetail @relation(fields: [reservationDetailId], references: [id])
+  promotion         Promotion         @relation(fields: [promotionId], references: [id])
+
+  @@unique([reservationDetailId, promotionId])
+}
+
+model Payment {
+  id             Int       @id @default(autoincrement())
+  reservationId  Int       @unique
+  methodId       Int
+  statusId       Int
+  amount         Decimal   @db.Decimal(10, 2)
+  transactionRef String?
+  paidAt         DateTime?
+
+  reservation Reservation   @relation(fields: [reservationId], references: [id])
+  method      PaymentMethod @relation(fields: [methodId], references: [id])
+  status      PaymentStatus @relation(fields: [statusId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Destination {
+  id           Int           @id @default(autoincrement())
+  name         String
+  tourPackages TourPackage[]
 }
